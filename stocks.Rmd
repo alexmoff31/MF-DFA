@@ -1,0 +1,538 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(tidyquant)
+library(tidyverse)
+```
+
+```{r}
+spy_prices  <- tq_get("SPY", get = "stock.prices", from = " 2019-08-01",to = "2022-8-1")
+spy_prices <- spy_prices[,c(1,2,6)]
+spy_prices
+```
+
+
+
+```{r}
+require(quantmod)
+ #  ETFs for  portfolio allocation:
+symbols = c('SPY','IWM','EFA','EEM','AGG','IYR','GLD')
+ # tnames
+symbol.names = c('S&P 500','Russell 2000','Europe, Australasia, Far East developed', 'Emerging Markets','Agg bond','REIT','Gold')
+ # download data using quantmod
+getSymbols(symbols, from = '2019-08-01', end = '2022-08-01',auto.assign = TRUE)
+candleChart(SPY,theme='white', type='candles') 
+```
+
+```{r}
+
+for (ss in 1:length(symbols)){
+  print(symbols[ss])
+  assign(paste0((symbols)[ss],"_prices"), tq_get(symbols[ss], get = "stock.prices", from = " 2019-08-01",to = "2022-8-1")[,c(2,6)])
+}
+
+head(SPY_prices)
+head(GLD_prices)
+```
+
+
+
+
+```{r}
+returns <- list()
+symbols[2]
+for (tt in 1:length(symbols)){
+  ret_bb <-get(paste0((symbols)[tt],"_prices"))[,2]
+  #return(ret_bb)
+  returns <- c(returns,list(ret_bb))
+  returns <- as.data.frame(returns)
+ # colnames(get(paste0((stocks)[tt],"_prices"))[1]) <- (stocks)[tt]
+}
+returns <- cbind(SPY_prices[1],returns)
+colnames(returns) <- c("Date",symbols)
+returns
+column_names_returns <- colnames(returns)
+```
+```{r}
+log_returns <- returns
+for(i in 2:ncol(returns)){
+  for(xx in 1:nrow(returns)){
+    log_returns[xx+1,i] = log(returns[xx+1,i]) - log(returns[xx,i])
+  }
+}
+log_returns<-log_returns[2:nrow(returns),]
+log_returns
+```
+
+
+```{r}
+# Joint time series plot of daily closing prices
+
+library(RColorBrewer)
+# set the colour 
+cols <- brewer.pal(ncol(returns-1),'Paired')
+
+pdf(file = "Traditional_Assets_Price.pdf", width = 7, height = 5, family = "Helvetica") # defaults to 7 x 7 inches
+par(mfrow=c(2,2))
+
+for(i in 2:ncol(returns)){
+  plot(returns[,i]~returns$Date,type="l",main = paste(column_names_returns[i], "Daily Closing Price"), xlab="Date",ylab="Daily Closing Price",lwd=2,col=cols[i])
+
+}
+dev.off()
+
+```
+
+```{r}
+# Joint time series plot of daily closing log returns
+
+library(RColorBrewer)
+# set the colour 
+cols <- brewer.pal(ncol(log_returns-1),'Paired')
+
+pdf(file = "Traditional_Assets_Log_Returns.pdf", width = 7, height = 5, family = "Helvetica") # defaults to 7 x 7 inches
+par(mfrow=c(2,2))
+
+for(i in 2:ncol(log_returns)){
+  plot(log_returns[,i]~log_returns$Date,type="l",ylim=c(-0.25,0.25),main = paste(column_names_returns[i], "Daily Log Returns"), xlab="Date",ylab="Log Returns",lwd=2,col=cols[i])
+
+}
+dev.off()
+
+```
+
+```{r}
+library(MFDFA)
+library(zoo)
+library(xts)
+library(lubridate)
+```
+
+```{r}
+for (i in 2:ncol(log_returns)){
+  assign(paste0(colnames(log_returns)[i],".ts"), ts(data=log_returns[i], frequency = 365,
+ start=c(2019,8,1), end=c(2021,8,25), ))
+}
+head(SPY.ts)
+SPY.ts[]
+```
+
+
+#```{r}
+SPY.ts$<-as.POSIXct(df$timestamp,format="%m/%d/%y %H:%M")
+
+df1.zoo<-zoo(df[,-1],df[,1]) #set date to Index
+
+df2 <- merge(df1.zoo,zoo(,seq(start(df1.zoo),end(df1.zoo),by="min")), all=TRUE)
+
+#```
+
+
+#```{r}
+library(dplyr)
+
+ts <- seq.POSIXt(as.POSIXct("2019-08-01",'%y/%m/%d'), as.POSIXct("2022-08-01",'%y/%m/%d'), by="min")
+
+ts <- seq.POSIXt(as.POSIXlt("2019-08-01"), as.POSIXlt("2022-08-01"), by="min")
+ts <- format.POSIXct(ts,'%y/%m/%d')
+
+df <- data.frame(timestamp=ts)
+
+data_with_missing_times <- full_join(df,SPY.ts)
+data_with_missing_times
+
+#```
+
+
+
+```{r}
+
+MFDFA_analysis <- function(data_var, scale, m, q){
+  return(assign(paste0(colnames(log_returns)[i],"_mfdfa"), MFDFA::MFDFA(data_var,scale,m,q)))
+} 
+
+```
+
+
+
+```{r}
+for (ww in 2:ncol(log_returns)){
+    scale <- 10:100
+    m <- 1
+    q <-- 10:10
+    data_var <- get(paste0(colnames(log_returns)[ww],".ts"))
+    assign(paste0(colnames(log_returns)[ww],"_log_mfdfa"), MFDFA::MFDFA(data_var,scale,m,q))
+}
+```
+
+
+```{r}
+GLD_log_mfdfa
+```
+
+
+```{r}
+poly_fit<-function(x,y,n){
+  formule<-lm(as.formula(paste('y~',paste('I(x^',1:n,')', sep='',collapse='+'))))
+  res1<-coef(formule)
+  poly.res<-res1[length(res1):1]
+  allres<-list(polyfit=poly.res, model1=formule)
+  return(allres)}
+```
+
+
+```{r}
+mfdfa_graphs <- function(mfdfa_data,title){
+  scale <- 10:100
+  m <- 1
+  q <-- 10:10
+  b<-mfdfa_data
+  par(mfrow = c(2,2))
+#Hurst exponent
+ # dev.new()
+#  par(mai=rep(1, 4))
+  plot(q, b$Hq, col=1, axes= F, ylab=expression('h'[q]), pch=16, cex.lab=1,
+     cex.axis=1, main="Hurst exponent",
+     ylim=c(min(b$Hq),max(b$Hq)))
+  grid(col="midnightblue")
+  axis(1)
+  axis(2)
+#Fluctuation function
+  p1<-c(1,which(q==0),which(q==q[length(q)]))
+  plot(log2(scale),log2(b$Fqi[,1]),  pch=16, col=1, axes = F, xlab = "s (days)",
+     ylab=expression('log'[2]*'(F'[q]*')'), cex=1, cex.lab=1, cex.axis=1.6,
+     main= "Fluctuation function Fq",
+     ylim=c(min(log2(b$Fqi[,c(p1)])),max(log2(b$Fqi[,c(p1)]))))
+  lines(log2(scale),b$line[,1], type="l", col=1, lwd=2)
+  grid(col="midnightblue")
+  axis(2)
+  lbl<-scale[c(1,floor(length(scale)/8),floor(length(scale)/4),
+             floor(length(scale)/2),length(scale))]
+  att<-log2(lbl)
+  axis(1, at=att, labels=lbl)
+  for (i in 2:3){
+   k<-p1[i]
+   points(log2(scale), log2(b$Fqi[,k]),  col=i,pch=2)
+   lines(log2(scale),b$line[,k], type="l", col=i, lwd=2)
+  }
+  legend("bottomright", c(paste('q','=',q[p1] , sep=' ' )),cex=1,lwd=c(2,2,2),
+  bty="n", col=1:3)
+  
+# Mass Exponent
+  plot(q, b$tau_q, col=1, axes=F, cex.lab=1, cex.axis=1,
+     main="Mass exponent",
+     pch=16,ylab=expression(tau[q]))
+  grid(col="midnightblue")
+  axis(1, cex=4)
+  axis(2, cex=4)
+
+#Multifractal spectrum
+  plot(b$spec$hq, b$spec$Dq, col=1, axes=F, pch=16, main="Multifractal spectrum",
+     ylab=bquote("f ("~alpha~")"),cex.lab=1, cex.axis=1,
+     xlab=bquote(~alpha))
+  grid(col="midnightblue")
+  axis(1)
+  axis(2)
+
+  x1=b$spec$hq
+  y1=b$spec$Dq
+  rr<-poly_fit(x1,y1,4)
+  mm1<-rr$model1
+  mm<-rr$polyfit
+  x2<-seq(0,max(x1)+1,0.01)
+  curv<-mm[1]*x2^4+mm[2]*x2^3+mm[3]*x2^2+mm[4]*x2+mm[5]
+  lines(x2,curv, col="red", lwd=2)
+  #reset()
+ #legend("top", legend=paste0(mfdfa_data), bty="n", cex=1.2)
+  mtext(paste0(title, " Analysis"),          # Add main title
+      side = 3,
+      line = - 1,
+      cex = 1.1,
+      outer = TRUE)
+  dev.off()
+}
+```
+
+
+```{r}
+#Log data MFDFA Analysis
+for (qq in 2:ncol(log_returns)){
+  title = colnames(log_returns)[qq]
+  mfdfa_graphs(get(paste0(colnames(log_returns)[qq],"_log_mfdfa")),title)
+}
+```
+
+```{r}
+hurst_exponent <- function(data_var){
+  scale <- 10:100
+  q <-- 10:10
+  m <- 1
+
+  Result <- data_var
+  Result$Hq
+  
+}
+```
+
+
+
+```{r}
+#Log data Hurst Exponents
+hurst_log_returns <- data.frame()
+
+for (xx in 2:ncol(log_returns)){
+  hurst_log_returns <- rbind.data.frame(hurst_log_returns,hurst_exponent(get(paste0(colnames(log_returns)[xx],"_log_mfdfa"))))
+  
+}
+q <-- 10:10
+colnames(hurst_log_returns) <- q
+rownames(hurst_log_returns) <- colnames(log_returns[2:ncol(log_returns)])
+hurst_log_returns
+t_hurst_log_returns <- t(hurst_log_returns) #transponse dataframe
+```
+
+```{r}
+library(reshape)
+
+df_log <- data.frame(x = seq_along(t_hurst_log_returns[,1]), t_hurst_log_returns)
+
+# Long format
+df_log <- melt(df_log, id.vars = "x")
+df_log$x <- df_log$x - 11
+df_log
+```
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+ggplot(df_log, aes(x = x, y = value, color = variable), size = 4) +
+  geom_line(lwd = 1.5) +
+  scale_fill_brewer(palette = "Set3") +
+  labs(x = "q", y = "Hurst Exponent",
+       title = "Hurst Exponents") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r}
+library(RespirAnalyzer)
+hurst_funct <- function(mfdfa){
+  Coeff <- fit.model(mfdfa$Hq,q)
+  Para<- -log(Coeff)/log(2)
+  Para[3]=Para[1]-Para[2]
+  names(Para)<-c("Hmax","Hmin","DeltaH")
+  #hurst_para <- rbind.data.frame(hurst_para,Para)
+  return(c(Para[1:3]))
+} 
+```
+
+```{r}
+hurst_funct(SPY_log_mfdfa)
+```
+
+
+```{r}
+library(dplyr)
+library(quadprog)
+hurst_log_para_returns <- data.frame()
+
+for (zz in 2:ncol(log_returns)){
+  log_a <- hurst_funct(get(paste0(colnames(log_returns)[zz],"_log_mfdfa")))
+  hurst_log_para_returns <- rbind.data.frame(hurst_log_para_returns,log_a)
+}
+rownames(hurst_log_para_returns) <- colnames(log_returns[2:ncol(log_returns)])
+colnames(hurst_log_para_returns) <- names(hurst_funct(SPY_log_mfdfa))
+hurst_log_para_returns
+
+```
+```{r}
+hurst_log_para_returns[order(hurst_log_para_returns$DeltaH, decreasing = TRUE),]
+```
+
+
+```{r}
+#MDM Market efficiency Measure
+mem_function <- function(small,large){
+  eff <- 0.5*(abs(small - 0.5)+abs(large - 0.5))
+  return(eff)
+}
+```
+
+```{r}
+mem_function((hurst_log_returns)[3,1],(hurst_log_returns)[3,21])
+```
+
+
+```{r}
+library(dplyr)
+mem <- data.frame()
+
+for (aa in 1:nrow(hurst_log_returns)){
+  eff_aa <- mem_function((hurst_log_returns)[aa,1],(hurst_log_returns)[aa,21])
+  #return(eff_aa)
+  mem <- rbind.data.frame(mem,eff_aa)
+}
+rownames(mem) <- rownames(hurst_log_returns)
+colnames(mem) <- c("MEM")
+mem
+```
+
+```{r}
+mem[order(mem$MEM, decreasing = TRUE),,drop = FALSE]
+```
+
+
+
+
+```{r}
+returns_dateless <- returns[,2:ncol(returns)]
+log_returns_dateless <- log_returns[,2:ncol(log_returns)]
+log_returns_dateless <- log_returns_dateless[1:(nrow(log_returns_dateless)-1),]
+colSums(log_returns_dateless)
+```
+
+
+```{r}
+#### Efficient Frontier function ####
+eff.frontier <- function (returns, short="no", max.allocation=NULL,
+                          risk.premium.up=.5, risk.increment=.005){
+  # return argument should be a m x n matrix with one column per security
+  # short argument is whether short-selling is allowed; default is no (short
+  # selling prohibited)max.allocation is the maximum % allowed for any one
+  # security (reduces concentration) risk.premium.up is the upper limit of the
+  # risk premium modeled (see for loop below) and risk.increment is the
+  # increment (by) value used in the for loop
+covariance <- cov(returns)
+  print(covariance)
+  n <- ncol(covariance)
+  
+  # Create initial Amat and bvec assuming only equality constraint
+  # (short-selling is allowed, no allocation constraints)
+  Amat <- matrix (1, nrow=n)
+  bvec <- 1
+  meq <- 1
+  
+  # Then modify the Amat and bvec if short-selling is prohibited
+  if(short=="no"){
+    Amat <- cbind(1, diag(n))
+    bvec <- c(bvec, rep(0, n))
+  }
+  
+  # And modify Amat and bvec if a max allocation (concentration) is specified
+  if(!is.null(max.allocation)){
+    if(max.allocation > 1 | max.allocation <0){
+      stop("max.allocation must be greater than 0 and less than 1")
+    }
+    if(max.allocation * n < 1){
+      stop("Need to set max.allocation higher; not enough assets to add to 1")
+    }
+    Amat <- cbind(Amat, -diag(n))
+    bvec <- c(bvec, rep(-max.allocation, n))
+  }
+  
+  # Calculate the number of loops
+  loops <- risk.premium.up / risk.increment + 1
+  loop <- 1
+  
+  # Initialize a matrix to contain allocation and statistics
+  # This is not necessary, but speeds up processing and uses less memory
+  eff <- matrix(nrow=loops, ncol=n+3)
+  # Now I need to give the matrix column names
+  colnames(eff) <- c(colnames(returns), "Std.Dev", "Exp.Return", "sharpe")
+  
+  # Loop through the quadratic program solver
+  for (i in seq(from=0, to=risk.premium.up, by=risk.increment)){
+    dvec <- colMeans(returns) * i # This moves the solution along the EF
+    #return(dvec)
+    sol <- solve.QP(covariance, dvec=dvec, Amat=Amat, bvec=bvec, meq=meq)
+    eff[loop,"Std.Dev"] <- sqrt(sum(sol$solution*colSums((covariance*sol$solution))))
+    eff[loop,"Exp.Return"] <- as.numeric(sol$solution %*% exp((colSums(returns))/100))
+    eff[loop,"sharpe"] <- eff[loop,"Exp.Return"] / eff[loop,"Std.Dev"]
+    eff[loop,1:n] <- sol$solution
+    loop <- loop+1
+  #return(dvec)
+  }
+  #return(dvec)
+  return(as.data.frame(eff))
+}
+```
+
+
+```{r}
+# Run the eff.frontier function based on no short and 50% alloc. restrictions
+eff <- eff.frontier(returns=log_returns_dateless, short="no", max.allocation=.30,
+                    risk.premium.up=5, risk.increment=.001)
+```
+
+
+
+```{r}
+# Find the optimal portfolio
+eff.optimal.point <- eff[eff$sharpe==max(eff$sharpe),]
+
+# graph efficient frontier
+# Start with color scheme
+ealred <- "#7D110C"
+ealtan <- "#CDC4B6"
+eallighttan <- "#F7F6F0"
+ealdark <- "#423C30"
+
+ggplot(eff, aes(x=Std.Dev, y=Exp.Return)) + geom_point(alpha=.1, color=ealdark) +
+  geom_point(data=eff.optimal.point, aes(x=Std.Dev, y=Exp.Return, label=sharpe),
+             color=ealred, size=5) +
+  #xlim(0.005,0.05)+
+  ylim(0.999,1.005)+
+  annotate(geom="text", x=eff.optimal.point$Std.Dev,
+           y=eff.optimal.point$Exp.Return,
+           label=paste("Risk: ",
+                       round(eff.optimal.point$Std.Dev*100, digits=3),"%\nReturn: ",
+                       round(eff.optimal.point$Exp.Return, digits=4),"%\nSharpe: ",
+                       round(eff.optimal.point$sharpe, digits=2), "%", sep=""),
+           hjust=0, vjust=1.2) +
+  ggtitle("Efficient Frontier and Optimal Portfolio") +
+  labs(x="Risk (standard deviation of portfolio)", y="Return") +
+  theme(panel.background=element_rect(fill=eallighttan),
+        text=element_text(color=ealdark),
+        plot.title=element_text(size=24, color=ealred))
+```
+
+
+```{r}
+eff.optimal.point
+```
+
+
+
+```{r}
+ # put input assumption in suitable format for Systematic Investor Toolbox
+ia = list()
+ia$n = length(log_returns)
+ia$annual.factor = 1
+ia$symbols = names(log_returns)
+ia$symbol.names = names(log_returns)
+ia$hist.returns = log_returns_dateless
+ 
+ia$arithmetic.return = apply(ia$hist.returns, 2, mean, na.rm = T)
+ia$arithmetic.return = (1 + ia$arithmetic.return)^ia$annual.factor - 1
+ia$geometric.return = apply(ia$hist.returns, 2, function(x) prod(1+x)^(1/length(x))-1 )
+ia$geometric.return = (1 + ia$geometric.return)^ia$annual.factor - 1
+ia$risk = apply(ia$hist.returns, 2, sd, na.rm = T)
+ia$risk = sqrt(ia$annual.factor) * ia$risk
+ia$correlation = cor(ia$hist.returns, use = 'complete.obs', method = 'pearson')
+ia$cov = cov(ia$hist.returns, use = 'complete.obs', method = 'pearson')
+ia$expected.return = ia$geometric.return
+```
+
+```{r}
+ia
+```
+
+
+
